@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <script src="node_modules/wavesurfer.js/dist/wavesurfer.js"></script>
+    <script src="node_modules/wavesurfer.js/dist/plugin/wavesurfer.markers.min.js"></script>
+    <script src="node_modules/wavesurfer.js/dist/plugin/wavesurfer.cursor.js"></script>
+    <script src="node_modules/wavesurfer.js/dist/plugin/wavesurfer.regions.min.js"></script>
+    <script src="node_modules/jsmediatags/dist/jsmediatags.min.js"></script>
+
+    <title>Lecteur audio</title>
+</head>
+
+<body>
+
+
+    <div class="hero">
+
+        <div class="menu">
+            <select name="Mode" id="typeMode">
+                <option value="Choisir un mode d'utilastion"></option>
+                <option value="Utilisation">Utilsation</option>
+                <option value="Edition">Edition</option>
+            </select>
+            <button id="buttonMode" onclick="ChooseMode()">Choisir un mode</button>
+        </div>
+        <div class="table">
+
+            <table id="markersList">
+                <tr>
+                    <th>Marqueur</th>
+                    <th>Text</th>
+                    <th>Action</th>
+                </tr>
+
+            </table>
+        </div>
+        <br>
+
+        <div class="music">
+            <img src="" alt="" id="picture">
+            <div class="info">
+
+                <h1 id="title"></h1>
+                <p id="album"></p>
+                <div id="waveform"></div>
+                <div class="controls">
+                    <img src="media/play.png" alt="" id="playbtn">
+                    <img src="media/stop.png" alt="" id="stopbtn">
+                    <img src="media/volume.png" alt="" id="volumebtn">
+                    <i>-</i>
+                    <input id="slider" data-action="zoom" type="range" min="1" max="200" value="1" style="width: 100%;">
+                    <i>+</i>
+                </div>
+
+                <br>
+                <input disabled type="file" id="myFile" name="filename">
+                <select disabled name="typeMarker" id="typeMarker">
+                    <option value="">Type marqueur</option>
+                    <option value="position">Position</option>
+                    <option value="region">Region</option>
+                    <option value="temporary">Temporaire</option>
+                </select>
+                <button disabled id="addMarker" onclick="addMarker()">Creer</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        var playbtn = document.getElementById("playbtn")
+        var stopbtn = document.getElementById("stopbtn")
+        var volumebtn = document.getElementById("volumebtn")
+        var File = document.getElementById("myFile")
+        var buttonMarkers = document.getElementById("addMarker")
+        var typeMarker = document.getElementById("typeMarker")
+        var buttonMode = document.getElementById("bottonMode")
+        var typeMode = document.getElementById("typeMode")
+        var markersList = document.getElementById("markersList")
+
+
+        //affectation des couleur des diffirent type de marqueur
+        var colorMapper = { "position": '#ff990a', "region": 'hsla(400, 100%, 30%, 0.5)', "temporary": 'red' }
+
+        //creation du wavesurfer
+        var wavesurfer = WaveSurfer.create({
+            container: '#waveform',
+            waveColor: '#dde5ec',
+            progressColor: '#03cebf',
+            responsive: true,
+            hideScrollbar: false,
+
+            plugins: [
+                //ajout des pluggin pour cree des marqueur de position et de regions et pou ajpouter
+                WaveSurfer.markers.create({
+                }),
+                WaveSurfer.regions.create({}),
+
+                WaveSurfer.cursor.create({
+                    showTime: true,
+                    opacity: 1,
+                    customShowTimeStyle: {
+                        'background-color': 'blue',
+                        color: '#fff',
+                        padding: '2px',
+                        'font-size': '10px'
+                    }
+                })
+            ]
+
+
+        });
+
+
+
+
+
+        //fonction qui permet de choisir le mode d'utilisation 
+        function ChooseMode() {
+            if (typeMode.value === "Utilisation") {
+                buttonMarkers.disabled = true;
+                typeMarker.disabled = true;
+                File.disabled = false;
+
+            }
+            else if (typeMode.value === "Edition") {
+                buttonMarkers.disabled = false;
+                typeMarker.disabled = false
+                File.disabled = false;
+            }
+        }
+
+
+        //gestion du zoom avant et arriere
+        var slider = document.querySelector('#slider');
+        slider.oninput = function () {
+            var zoomLevel = Number(slider.value);
+            wavesurfer.zoom(zoomLevel);
+
+        };
+
+        //lire ou mettre pausse sur le fichier mp3.
+        // wavesurfer.load(File);
+        playbtn.onclick = function () {
+            wavesurfer.playPause();
+
+            if (playbtn.src.includes("play.png")) {
+                playbtn.src = "media/pause.png";
+            } else {
+                playbtn.src = "media/play.png";
+            }
+        }
+
+        // arret complet de la lecture du fichier mp3
+        stopbtn.onclick = function () {
+            wavesurfer.stop();
+            playbtn.src = "media/play.png";
+        }
+
+        // couper ou mettre le son
+        volumebtn.onclick = function () {
+            wavesurfer.toggleMute();
+
+            if (volumebtn.src.includes("volume.png")) {
+                volumebtn.src = "media/mute.png";
+            } else {
+                volumebtn.src = "media/volume.png";
+            }
+        }
+
+        // si la  lecture est fini retour au point de depart
+        wavesurfer.on('finish', function () {
+            playbtn.src = "media/play.png";
+            wavesurfer.stop();
+
+        })
+
+        //récuperation de l'url du fichier mp3
+        document.getElementById('myFile').addEventListener('change', function () {
+            // console.log(this.files[0].path);
+            URLFile = this.files[0].path
+
+            //récuperation des id3 (metadonnées) du ficheir mp3
+            jsmediatags.read(this.files[0], {
+                onSuccess: function (tag) {
+                    console.log(tag);
+                    // Titre et auteur
+                    titleTag = document.getElementById("title")
+                    titleTag.innerText = tag.tags.title + "-" + tag.tags.artist
+
+                    albumTag = document.getElementById("album")
+                    albumTag.innerText = tag.tags.album
+
+                    //Cover
+                    pictureTag = document.getElementById("picture")
+                    const { data, type } = tag.tags.picture;
+                    const byteArray = new Uint8Array(data);
+                    const blob = new Blob([byteArray], { type });
+                    const albumArtUrl = URL.createObjectURL(blob);
+                    pictureTag.src = albumArtUrl
+                },
+                onError: function (error) {
+                    console.log(error);
+                }
+            });
+
+            //
+            wavesurfer.on('ready', function () {
+
+                // buttonMarkers.disabled = false;
+                // typeMarker.disabled = false
+
+            });
+            //ouverture et lecture du fichier audio
+            wavesurfer.load(URLFile);
+
+        });
+
+        //Ajouts des marqueurs de position ,temporaire et  de region
+        //ici on test en fonction de la valeur du champts option que nous avons ecrit plus haut si valeur est egale a position 
+        //alors il nous crre un marqueur de position
+        //si=region creation du maekeur de region
+        //sinn marqueur temoraire
+        function addMarker() {
+            textMarker = typeMarker.value
+
+            if (typeMarker.value === "temporary") {
+                /*
+                                var x = document.createElement("INPUT");
+                                x.setAttribute("type", "text");
+                                x.setAttribute("value", "Entrer le texte");
+                                document.body.appendChild(x);
+                */
+                wavesurfer.addMarker({
+                    container: document.querySelector('#waveform'),
+                    time: wavesurfer.getCurrentTime(),
+                    label: textMarker,
+                    color: colorMapper[typeMarker.value],
+                    position: "top",
+
+
+                })
+
+
+            }
+
+            else if (typeMarker.value === "region") {
+                wavesurfer.addRegion({
+                    start: wavesurfer.getCurrentTime(),
+                    // end: wavesurfer.getCurrentTime() + 5,
+                    resize: true,
+                    drag: true,
+                    attributes: {
+                        label: textMarker
+                    },
+                    color: colorMapper[typeMarker.value]
+
+                })
+
+            }
+            else {
+                if(typeMarker.value === "position"){ 
+                wavesurfer.addMarker({
+                    container: document.querySelector('#waveform'),
+                    time: wavesurfer.getCurrentTime(),
+                    label: textMarker,
+                    color: colorMapper[typeMarker.value],
+                    position: "botton",
+
+
+                })
+            }
+
+            }
+            //
+            // Enregistrer la position temporelle du marqueur
+            endpPosition = wavesurfer.getCurrentTime()
+            //console.log(endpPosition);
+            addMarkerOnList(endpPosition, wavesurfer.markers.markers.length, textMarker)
+        }
+
+        // ajouter le marqueurs dans la liste 
+        function addMarkerOnList(endpPosition, index, text) {
+            if (typeMarker.value === "temporary") {
+
+                markersList.innerHTML = markersList.innerHTML + ' <tr id ="' + index + '"> <td> </td>  <td> </td><td><button  onclick="playUntilMarker(' + 'endpPosition' + ')">Play</button><button onclick="deleteMarker(' + index + ')">Supprimer</button></td> </tr>'
+            }
+        }
+
+        //fonction qui permet de jouer une decoupe
+        function playUntilMarker(endpPosition) {
+
+            var decoupe = wavesurfer.play(0,endpPosition)
+            console.log(decoupe);
+        }
+
+        function deleteMarker(markerId) {
+
+            // Ajouter un pop de confirmation de suppresion  
+
+            /*var marker = document.getElementById(markerId)  
+            marker.remove()
+            
+             wavesurfer.markers.markers = wavesurfer.markers.markers.filter(function(value, index, arr){ 
+                    return markerId != index;
+                });
+            */
+        }
+
+
+    </script>
+    <script src="./renderer.js"> </script>
+</body>
+
+</html>
